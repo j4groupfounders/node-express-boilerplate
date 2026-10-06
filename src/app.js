@@ -30,6 +30,17 @@ app.use(express.json());
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));
 
+// Express 5 compatibility (J4 upgrade): restore Express 4 request semantics that the app relies on.
+// - req.query is a recomputed getter in Express 5; make it a writable own property so the
+//   sanitizers below and validate() can replace it (otherwise they throw or are silently ignored).
+// - body-parser 2 leaves req.body undefined when no body was parsed; Express 4 gave {}. Without this,
+//   an empty POST /v1/auth/login passes Joi validation and crashes the controller (500 instead of 400).
+app.use((req, res, next) => {
+  Object.defineProperty(req, 'query', { value: req.query, writable: true, configurable: true, enumerable: true });
+  if (req.body === undefined) req.body = {};
+  next();
+});
+
 // sanitize request data
 app.use(xss());
 app.use(mongoSanitize());
@@ -39,7 +50,7 @@ app.use(compression());
 
 // enable cors
 app.use(cors());
-app.options('*', cors());
+app.options('/{*splat}', cors());
 
 // jwt authentication
 app.use(passport.initialize());
