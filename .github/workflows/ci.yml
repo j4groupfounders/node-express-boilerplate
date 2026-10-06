@@ -1,0 +1,46 @@
+name: CI
+# Added by J4 (fork only): ports upstream .travis.yml (lint + test with MongoDB) to GitHub Actions.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:${{ vars.MONGO_VERSION || '4.4' }}
+        ports:
+          - 27017:27017
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      MONGODB_URL: mongodb://127.0.0.1:27017/node-boilerplate
+      JWT_SECRET: thisisasamplesecret
+      JWT_ACCESS_EXPIRATION_MINUTES: 30
+      JWT_REFRESH_EXPIRATION_DAYS: 30
+      JWT_RESET_PASSWORD_EXPIRATION_MINUTES: 10
+      JWT_VERIFY_EMAIL_EXPIRATION_MINUTES: 10
+      SMTP_HOST: localhost
+      SMTP_PORT: 587
+      SMTP_USERNAME: x
+      SMTP_PASSWORD: x
+      EMAIL_FROM: support@example.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION || '14' }}
+          cache: yarn
+      - run: yarn install --frozen-lockfile --ignore-scripts
+      - run: yarn lint
+      - run: yarn coverage
+      - name: Boot check
+        run: |
+          node src/index.js > boot.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:3000/v1/docs/ -o /dev/null && break; sleep 1; done
+          curl -s -o /dev/null -w "GET /v1/docs/ -> %{http_code}\n" http://127.0.0.1:3000/v1/docs/
+          curl -s -o /dev/null -w "GET /v1/users (no auth) -> %{http_code}\n" http://127.0.0.1:3000/v1/users
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/v1/users)" = "401"
+          cat boot.log | tail -5
