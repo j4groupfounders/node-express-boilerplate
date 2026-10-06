@@ -1,0 +1,22 @@
+name: J4 relock
+# J4 fork-only helper: when package.json changes on an upgrade branch, update yarn.lock
+# (install with --ignore-scripts: no package lifecycle scripts run). Commit back to the branch.
+on:
+  push:
+    branches: ['j4/upgrade-*']
+    paths: ['package.json']
+permissions:
+  contents: write
+jobs:
+  relock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: yarn install --ignore-scripts --non-interactive
+      - run: grep -A1 '^express@' yarn.lock
+      - run: |
+          git config user.name "J4 Westin"; git config user.email "j4groupfounders@users.noreply.github.com"
+          git commit -am "Relock yarn.lock" && git push || echo "lock unchanged"
