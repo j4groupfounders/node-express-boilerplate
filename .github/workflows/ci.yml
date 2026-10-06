@@ -34,7 +34,7 @@ jobs:
           node-version: ${{ vars.NODE_VERSION || '14' }}
           cache: yarn
       - run: yarn install --frozen-lockfile --ignore-scripts
-      - name: Lint (non-blocking: fails at upstream baseline, prettier drift)
+      - name: Lint (non-blocking, fails at upstream baseline due to prettier drift)
         run: yarn lint
         continue-on-error: true
       - run: yarn coverage
